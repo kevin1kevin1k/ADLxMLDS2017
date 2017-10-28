@@ -7,6 +7,7 @@
 import numpy as np
 np.random.seed(666)
 import keras
+import os
 from utils import *
 
 
@@ -20,9 +21,13 @@ def build_data_test(data_path):
     read_ark(data_path + 'mfcc/test.ark', sentence2frames_test)
 
     # number of testing sentences
+    global NUM_SENTENCES_TEST
     NUM_SENTENCES_TEST = len(sentence2frames_test)
-
+    
+    global sentences_test
     sentences_test = sorted(sentence2frames_test)
+    
+    global X_test
     X_test = np.zeros((NUM_SENTENCES_TEST, MAX_SENTENCE_LEN, FEATURE_LEN))
 
     for i, s in enumerate(sentences_test):
@@ -39,10 +44,11 @@ def predict_single_model(model_path):
     y_predict = np.argmax(y_predict, axis=-1)
     return y_predict
 
-def predict_ensemble(model_paths):
+def predict_ensemble(model_dir):
+    model_paths = os.listdir(model_dir)
     y_predict = np.zeros([NUM_SENTENCES_TEST, MAX_SENTENCE_LEN, NUM_CLASSES])
     for model_path in model_paths:
-        model = keras.models.load_model('../models/' + model_path)
+        model = keras.models.load_model(model_dir + model_path)
         y_predict += model.predict(X_test)
         print(model_path)
 
@@ -75,7 +81,7 @@ def decode(seq):
     end = i + 1
     
     trimmed = [phone48_char48[phone48_phone39[int48_phone48[i]]] for i in seq[start:end]]
-    return''.join([k for k, v in itertools.groupby(trimmed)])
+    return ''.join([k for k, v in itertools.groupby(trimmed)])
 
 
 # In[ ]:
@@ -195,7 +201,7 @@ def decode_by_mode_history(seq):
 # In[ ]:
 
 
-def write_csv(csv_filename):
+def write_csv(y_predict, csv_filename):
     y_predict_decoded = list(map(decode_by_mode_history, y_predict))
 
     with open(csv_filename, 'w') as prediction_f:

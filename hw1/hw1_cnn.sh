@@ -5,4 +5,4 @@ CSV_FILENAME=$2
 
 ./download_models.sh
 
-python model_rnn.py $DATA_PATH $CSV_FILENAME
+python model_cnn.py $DATA_PATH $CSV_FILENAME
