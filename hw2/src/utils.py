@@ -8,12 +8,7 @@ import os
 import numpy as np
 import json
 import re
-
-
-# In[ ]:
-
-
-USE_CUDA = True
+from models import *
 
 
 # In[ ]:
@@ -52,10 +47,13 @@ class Lang:
         
         keep_words = []
         
-        for k, v in self.word2count.items():
-            if v >= min_count:
-                keep_words.append(k)
-
+        for i in range(self.n_words):
+            w = self.index2word[i]
+            if w in ['PAD', 'SOS', 'EOS']:
+                continue
+            if self.word2count[w] >= min_count:
+                keep_words.append(w)
+            
         print('keep_words %s / %s = %.4f' % (
             len(keep_words), len(self.word2index), len(keep_words) / len(self.word2index)
         ))
@@ -85,9 +83,6 @@ def normalize(s):
 # In[ ]:
 
 
-import torch
-from torch.autograd import Variable
-
 # Return a list of indexes, one for each word in the sentence
 def indexes_from_sentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
@@ -96,7 +91,6 @@ def variable_from_sentence(lang, sentence):
     indexes = indexes_from_sentence(lang, sentence)
     indexes.append(EOS_token)
     var = Variable(torch.LongTensor(indexes).view(-1, 1))
-#     print('var =', var)
     if USE_CUDA: var = var.cuda()
     return var
 
@@ -163,4 +157,63 @@ for id_captions_dict in list_of_id_captions_dicts:
     
     index = filenames_train.index(id_ + '.npy')
     captions_train[index] = captions
+
+
+# In[ ]:
+
+
+captions_train_normalized = [[normalize(caption) for caption in captions] for captions in captions_train]
+
+
+# In[ ]:
+
+
+def filter_captions(captions_list):
+    filtered_captions_list = []
+    for captions in captions_list:
+        filtered_captions = []
+        for caption in captions:
+            L = len(caption.split(' '))
+            if MIN_LENGTH <= L <= MAX_LENGTH:
+                filtered_captions.append(caption)
+        filtered_captions_list.append(filtered_captions)
+    return filtered_captions_list
+
+captions_train_filtered = filter_captions(captions_train_normalized)
+
+
+# In[ ]:
+
+
+output_lang = Lang()
+
+print("Indexing words...")
+for captions in captions_train_filtered:
+    for caption in captions:
+        output_lang.index_words(caption)
+
+print('Indexed {} words in output'.format(output_lang.n_words))
+
+output_lang.trim(2)
+
+
+# In[ ]:
+
+
+def show_length_count(captions_list):
+    length_count = list()
+    for captions in captions_list:
+        if len(captions) == 0:
+            print('NO CAPTION!!')
+        for caption in captions:
+            L = len(caption.split(' '))
+            length_count.append(L)
+
+    print(min(length_count), max(length_count), len(length_count))
+
+    import matplotlib.pyplot as plt
+    get_ipython().run_line_magic('matplotlib', 'inline')
+
+    plt.hist(length_count, max(length_count) - min(length_count) + 1)
+    plt.show()
 

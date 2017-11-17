@@ -14,14 +14,14 @@ import torch.nn.functional as F
 # In[ ]:
 
 
-MIN_LENGTH = 5
-MAX_LENGTH = 20
+USE_CUDA = True
 
 
 # In[ ]:
 
 
-USE_CUDA = True
+MIN_LENGTH = 5
+MAX_LENGTH = 20
 
 
 # In[ ]:
@@ -30,31 +30,6 @@ USE_CUDA = True
 class EncoderRNN(nn.Module):
     def __init__(self, input_size, hidden_size, n_layers=1):
         super(EncoderRNN, self).__init__()
-        
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.n_layers = n_layers
-        
-        self.gru = nn.GRU(input_size, hidden_size, n_layers)
-        
-    def forward(self, word_inputs, hidden):
-        # Note: we run this all at once (over the whole input sequence)
-        inputs = torch.unsqueeze(word_inputs, 1)
-        output, hidden = self.gru(inputs, hidden)
-        return output, hidden
-
-    def init_hidden(self):
-        hidden = Variable(torch.zeros(self.n_layers, 1, self.hidden_size))
-        if USE_CUDA: hidden = hidden.cuda()
-        return hidden
-
-
-# In[ ]:
-
-
-class EncoderRNN2(nn.Module):
-    def __init__(self, input_size, hidden_size, n_layers=1):
-        super(EncoderRNN2, self).__init__()
         
         self.input_size = input_size
         self.hidden_size = hidden_size

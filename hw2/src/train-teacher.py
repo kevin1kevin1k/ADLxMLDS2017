@@ -5,90 +5,6 @@
 
 
 from utils import *
-from models import *
-
-
-# In[ ]:
-
-
-USE_CUDA = True
-
-
-# In[ ]:
-
-
-captions_train_normalized = [[normalize(caption) for caption in captions] for captions in captions_train]
-
-
-# In[ ]:
-
-
-def show_length_count(captions_list):
-    length_count = list()
-    for captions in captions_list:
-        if len(captions) == 0:
-            print('NO CAPTION!!')
-        for caption in captions:
-            L = len(caption.split(' '))
-            length_count.append(L)
-
-    print(min(length_count), max(length_count), len(length_count))
-
-    import matplotlib.pyplot as plt
-    get_ipython().run_line_magic('matplotlib', 'inline')
-
-    plt.hist(length_count, max(length_count) - min(length_count) + 1)
-    plt.show()
-
-
-# In[ ]:
-
-
-show_length_count(captions_train_normalized)
-
-
-# In[ ]:
-
-
-def filter_captions(captions_list):
-    filtered_captions_list = []
-    for captions in captions_list:
-        filtered_captions = []
-        for caption in captions:
-            L = len(caption.split(' '))
-            if MIN_LENGTH <= L <= MAX_LENGTH:
-                filtered_captions.append(caption)
-        filtered_captions_list.append(filtered_captions)
-    return filtered_captions_list
-
-
-# In[ ]:
-
-
-captions_train_filtered = filter_captions(captions_train_normalized)
-
-show_length_count(captions_train_filtered)
-
-
-# In[ ]:
-
-
-output_lang = Lang()
-
-print("Indexing words...")
-for captions in captions_train_filtered:
-    for caption in captions:
-        output_lang.index_words(caption)
-
-print('Indexed {} words in output'.format(output_lang.n_words))
-
-
-# In[ ]:
-
-
-MIN_COUNT = 2
-
-output_lang.trim(MIN_COUNT)
 
 
 # In[ ]:
@@ -190,7 +106,7 @@ def evaluate_on_train(index, encoder, decoder, max_length=80):
     
     # Run through encoder
     encoder_outputs, encoder_hidden = encoder(input_variable)
-
+    
     # Create starting vectors for decoder
     decoder_input = Variable(torch.LongTensor([[SOS_token]])) # SOS
     decoder_context = Variable(torch.zeros(1, decoder.hidden_size))
@@ -250,9 +166,10 @@ attn_model = 'general'
 hidden_size = 256
 n_layers = 1
 dropout_p = 0.05
+MODEL_DIR = '../models/teacher-3/'
 
 # Initialize models
-encoder = EncoderRNN2(num_features, hidden_size, n_layers)
+encoder = EncoderRNN(num_features, hidden_size, n_layers)
 decoder = AttnDecoderRNN(attn_model, hidden_size, output_lang.n_words, n_layers, dropout_p=dropout_p)
 
 # Move models to GPU
@@ -271,7 +188,7 @@ criterion = nn.NLLLoss()
 
 
 # Configuring training
-n_epochs = 100000
+n_epochs = 50000
 plot_every = 200
 print_every = 100
 save_every = 1000
@@ -329,8 +246,8 @@ for epoch in range(1, n_epochs + 1):
         decoder.train()
         with open('./log.txt', 'a') as log_f:
             log_f.write(print_summary + '\n')
-            log_f.write('Truth:   ', captions[epoch % num_captions] + '\n')
-            log_f.write('Predict: ', output_sentence + '\n')
+            log_f.write('Truth:   ' + captions[epoch % num_captions] + '\n')
+            log_f.write('Predict: ' + output_sentence + '\n')
         
     if epoch % plot_every == 0:
         plot_loss_avg = plot_loss_total / plot_every
@@ -338,10 +255,12 @@ for epoch in range(1, n_epochs + 1):
         plot_loss_total = 0
     
     if epoch % save_every == 0:
-        MODEL_DIR = '../models/teacher-2/'
-        torch.save(encoder.state_dict(), MODEL_DIR + './encoder_epoch{}.sd'.format(str(epoch)))
-        torch.save(decoder.state_dict(), MODEL_DIR + './decoder_epoch{}.sd'.format(str(epoch)))
-        
+        encoder.eval()
+        decoder.eval()
+        torch.save(encoder, MODEL_DIR + 'encoder_epoch{}.sd'.format(str(epoch)))
+        torch.save(decoder, MODEL_DIR + 'decoder_epoch{}.sd'.format(str(epoch)))
+        encoder.train()
+        decoder.train()
 
 
 # In[ ]:

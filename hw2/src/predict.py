@@ -5,82 +5,6 @@
 
 
 from utils import *
-from models import *
-
-
-# In[ ]:
-
-
-import torch
-# torch.manual_seed(666)
-# torch.cuda.manual_seed(666)
-
-MODEL_DIR = '../models/'
-
-
-# In[ ]:
-
-
-import re
-
-# Lowercase, trim, and remove non-letter characters
-def normalize(s):
-    s = s.lower().strip()
-    s = re.sub(r"([,.!?])", r" \1 ", s)
-    s = re.sub(r"[^a-zA-Z,.!?]+", r" ", s)
-    s = re.sub(r"\s+", r" ", s).strip()
-    return s
-
-captions_train_normalized = [[normalize(caption) for caption in captions] for captions in captions_train]
-
-def filter_captions(captions_list):
-    filtered_captions_list = []
-    for captions in captions_list:
-        filtered_captions = []
-        for caption in captions:
-            L = len(caption.split(' '))
-            if MIN_LENGTH <= L <= MAX_LENGTH:
-                filtered_captions.append(caption)
-        filtered_captions_list.append(filtered_captions)
-    return filtered_captions_list
-
-captions_train_filtered = filter_captions(captions_train_normalized)
-
-
-# In[ ]:
-
-
-output_lang = Lang()
-
-print("Indexing words...")
-for captions in captions_train_filtered:
-    for caption in captions:
-        output_lang.index_words(caption)
-
-print('Indexed {} words in output'.format(output_lang.n_words))
-
-
-# In[ ]:
-
-
-MIN_COUNT = 2
-
-output_lang.trim(MIN_COUNT)
-
-
-# In[ ]:
-
-
-USE_CUDA = True
-
-
-# In[ ]:
-
-
-attn_model = 'general'
-hidden_size = 256
-n_layers = 1
-dropout_p = 0.05
 
 
 # In[ ]:
@@ -89,11 +13,12 @@ dropout_p = 0.05
 # encoder = EncoderRNN(num_features, hidden_size, n_layers)
 # decoder = AttnDecoderRNN(attn_model, hidden_size, output_lang.n_words, n_layers, dropout_p=dropout_p)
 
-# encoder.load_state_dict(torch.load(MODEL_DIR + 'new/encoder_z1.sd'))
-# decoder.load_state_dict(torch.load(MODEL_DIR + 'new/decoder_z1.sd'))
+# encoder.load_state_dict(torch.load(MODEL_DIR + 'encoder_epoch100000.sd'))
+# decoder.load_state_dict(torch.load(MODEL_DIR + 'decoder_epoch100000.sd'))
 
-encoder = torch.load(MODEL_DIR + 'new/encoder_z2.sd')
-decoder = torch.load(MODEL_DIR + 'new/decoder_z2.sd')
+MODEL_DIR = '../models/teacher-3/'
+encoder = torch.load(MODEL_DIR + 'encoder_epoch100000.sd')
+decoder = torch.load(MODEL_DIR + 'encoder_epoch100000.sd')
 
 # Move models to GPU
 if USE_CUDA:
@@ -115,8 +40,7 @@ def evaluate(id_, max_length=80):
     if USE_CUDA: input_variable = input_variable.cuda()
     
     # Run through encoder
-    encoder_hidden = encoder.init_hidden()
-    encoder_outputs, encoder_hidden = encoder(input_variable, encoder_hidden)
+    encoder_outputs, encoder_hidden = encoder(input_variable)
 
     # Create starting vectors for decoder
     decoder_input = Variable(torch.LongTensor([[SOS_token]])) # SOS
@@ -161,9 +85,8 @@ def evaluate_on_train(index, max_length=80):
     if USE_CUDA: input_variable = input_variable.cuda()
     
     # Run through encoder
-    encoder_hidden = encoder.init_hidden()
-    encoder_outputs, encoder_hidden = encoder(input_variable, encoder_hidden)
-
+    encoder_outputs, encoder_hidden = encoder(input_variable)
+    
     # Create starting vectors for decoder
     decoder_input = Variable(torch.LongTensor([[SOS_token]])) # SOS
     decoder_context = Variable(torch.zeros(1, decoder.hidden_size))
@@ -215,16 +138,4 @@ for id_ in ids:
     output_words, decoder_attn = evaluate(id_)
     output_sentence = ' '.join(output_words[:-1])
     print(output_sentence)
-
-
-# In[ ]:
-
-
-import random
-
-index = random.randrange(num_videos)
-print(index)
-output_words, decoder_attn = evaluate_on_train(index)
-output_sentence = ' '.join(output_words[:-1])
-print(output_sentence)
 
