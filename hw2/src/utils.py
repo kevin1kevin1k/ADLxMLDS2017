@@ -54,9 +54,9 @@ class Lang:
             if self.word2count[w] >= min_count:
                 keep_words.append(w)
             
-        print('keep_words %s / %s = %.4f' % (
-            len(keep_words), len(self.word2index), len(keep_words) / len(self.word2index)
-        ))
+#         print('keep_words %s / %s = %.4f' % (
+#             len(keep_words), len(self.word2index), len(keep_words) / len(self.word2index)
+#         ))
 
         # Reinitialize dictionaries
         self.word2index = {}
@@ -187,12 +187,12 @@ captions_train_filtered = filter_captions(captions_train_normalized)
 
 output_lang = Lang()
 
-print("Indexing words...")
+# print("Indexing words...")
 for captions in captions_train_filtered:
     for caption in captions:
         output_lang.index_words(caption)
 
-print('Indexed {} words in output'.format(output_lang.n_words))
+# print('Indexed {} words in output'.format(output_lang.n_words))
 
 output_lang.trim(2)
 
