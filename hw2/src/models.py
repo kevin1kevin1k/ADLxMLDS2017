@@ -28,21 +28,27 @@ MAX_LENGTH = 20
 
 
 class EncoderRNN(nn.Module):
-    def __init__(self, input_size, hidden_size, n_layers=1):
+    def __init__(self, input_size, hidden_size, n_layers=1, bidirectional=False):
         super(EncoderRNN, self).__init__()
         
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.n_layers = n_layers
+        self.n_dir = (2 if bidirectional else 1)
         
-        self.gru = nn.GRU(input_size, hidden_size, n_layers)
+        self.gru = nn.GRU(input_size, hidden_size, n_layers, bidirectional=bidirectional)
         
     def forward(self, word_inputs):
         # Note: we run this all at once (over the whole input sequence)
         inputs = torch.unsqueeze(word_inputs, 1)
-        hidden = Variable(torch.zeros(self.n_layers, 1, self.hidden_size))
+        hidden = Variable(torch.zeros(self.n_layers * self.n_dir, 1, self.hidden_size))
         if USE_CUDA: hidden = hidden.cuda()
         output, hidden = self.gru(inputs, hidden)
+        if self.n_dir == 2:
+            hidden = (hidden[0, :, :] + hidden[1, :, :]).unsqueeze(0)
+            output = output[:, :, :self.hidden_size] + output[:, : ,self.hidden_size:]
+#         print(output.size())
+#         print(hidden.size())
         return output, hidden
 
 
@@ -138,4 +144,40 @@ class AttnDecoderRNN(nn.Module):
         
         # Return final output, hidden state, and attention weights (for visualization)
         return output, context, hidden, attn_weights
+
+
+# In[ ]:
+
+
+class DecoderRNN(nn.Module):
+    def __init__(self, hidden_size, output_size, n_layers=1, dropout_p=0.1):
+        super(DecoderRNN, self).__init__()
+        
+        # Keep parameters for reference
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        self.n_layers = n_layers
+        self.dropout_p = dropout_p
+        
+        # Define layers
+        self.embedding = nn.Embedding(output_size, hidden_size)
+        self.gru = nn.GRU(hidden_size, hidden_size, n_layers, dropout=dropout_p)
+        self.out = nn.Linear(hidden_size, output_size)
+        
+    def forward(self, word_input, last_hidden):
+        # Note: we run this one step at a time
+        
+        # Get the embedding of the current input word (last output word)
+        word_embedded = self.embedding(word_input).view(1, 1, -1) # S=1 x B x N
+        
+        # Combine embedded input word and last context, run through RNN
+        rnn_input = word_embedded
+        rnn_output, hidden = self.gru(rnn_input, last_hidden)
+
+        # Final output layer (next word prediction) using the RNN hidden state and context vector
+        rnn_output = rnn_output.squeeze(0) # S=1 x B x N -> B x N
+        output = F.log_softmax(self.out(rnn_output))
+        
+        # Return final output, hidden state, and attention weights (for visualization)
+        return output, hidden
 
