@@ -17,6 +17,8 @@ MODEL_DIR = '../models/'
 encoder = torch.load(os.path.join(MODEL_DIR, 'encoder_epoch50000_no-attention.sd'))
 decoder = torch.load(os.path.join(MODEL_DIR, 'decoder_epoch50000_no-attention.sd'))
 
+output_lang = torch.load(os.path.join(MODEL_DIR, 'output_lang.pt'))
+
 # Move models to GPU
 if USE_CUDA:
     encoder.cuda()

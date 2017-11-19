@@ -67,7 +67,7 @@ class Lang:
         for word in keep_words:
             self.index_word(word)
 
-
+'''
 # In[ ]:
 
 
@@ -216,4 +216,4 @@ def show_length_count(captions_list):
 
     plt.hist(length_count, max(length_count) - min(length_count) + 1)
     plt.show()
-
+'''
