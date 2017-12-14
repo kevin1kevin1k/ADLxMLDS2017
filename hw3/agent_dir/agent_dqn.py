@@ -1,4 +1,5 @@
 from agent_dir.agent import Agent
+from model import *
 
 class Agent_DQN(Agent):
     def __init__(self, env, args):
@@ -10,13 +11,14 @@ class Agent_DQN(Agent):
         super(Agent_DQN,self).__init__(env)
 
         if args.test_dqn:
-            #you can load your model here
             print('loading trained model')
+            self.net = torch.load('/mnt/disk0/kevin1kevin1k/models/dqn_mask_0.pt')
+            self.net.eval_net.eval()
 
         ##################
         # YOUR CODE HERE #
         ##################
-
+        self.env = env
 
     def init_game_setting(self):
         """
@@ -38,7 +40,51 @@ class Agent_DQN(Agent):
         ##################
         # YOUR CODE HERE #
         ##################
-        pass
+
+        dqn = DQN(TARGET_UPDATE_FREQ)
+
+        rewards = []
+        seed = 11037
+        self.env.seed(seed)
+        model_path = '/mnt/disk0/kevin1kevin1k/models/'
+        steps = 0
+        start = time()
+        for ep in count(1):
+            s = self.env.reset()
+            done = False
+            episode_reward = 0.0
+
+            for j in count():
+                a = dqn.get_action(s, steps / (TOTAL_STEPS * 0.1))
+                s_, r, done, info = self.env.step(a)
+
+                dqn.memory.add_transition(
+                    FloatTensor(np.expand_dims(s.transpose(2, 0, 1).astype(float), 0)),
+                    LongTensor([[a]]),
+                    FloatTensor(np.expand_dims(s_.transpose(2, 0, 1).astype(float), 0)) if not done else None,
+                    FloatTensor([r.astype(float)]),
+                )
+
+                if dqn.can_learn() and steps % EVAL_UPDATE_FREQ == 0:
+                    update_target = steps % TARGET_UPDATE_FREQ == 0
+                    dqn.learn(update_target)
+
+                episode_reward += r
+                steps += 1
+
+                if steps % SAVE_EVERY == 0:
+                    torch.save(dqn, MODEL_PATH + 'dqn_mask_{}.pt'.format(steps))
+
+                if done:
+                    break
+
+                s = s_
+
+            rewards.append(episode_reward)
+            avg = np.average(rewards[-100:])
+            print('Episode: {}, steps: {}, reward: {:.1f}, avg_100: {:.1f}, time: {}'.format(ep, steps, episode_reward, avg, int(time() - start)))
+            if steps > TOTAL_STEPS:
+                break
 
 
     def make_action(self, observation, test=True):
@@ -56,5 +102,6 @@ class Agent_DQN(Agent):
         ##################
         # YOUR CODE HERE #
         ##################
-        return self.env.get_random_action()
 
+        action = self.net.get_action(observation, -1)
+        return action
