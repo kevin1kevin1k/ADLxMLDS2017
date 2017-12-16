@@ -46,7 +46,6 @@ class Agent_DQN(Agent):
         rewards = []
         seed = 11037
         self.env.seed(seed)
-        model_path = '/mnt/disk0/kevin1kevin1k/models/'
         steps = 0
         start = time()
         for ep in count(1):
