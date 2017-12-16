@@ -12,7 +12,7 @@ class Agent_DQN(Agent):
 
         if args.test_dqn:
             print('loading trained model')
-            self.net = torch.load('/mnt/disk0/kevin1kevin1k/models/dqn_mask_0.pt')
+            self.net = torch.load('./net_mask_2550000.pt')
             self.net.eval_net.eval()
 
         ##################
@@ -73,7 +73,7 @@ class Agent_DQN(Agent):
                 steps += 1
 
                 if steps % SAVE_EVERY == 0:
-                    torch.save(dqn, MODEL_PATH + 'dqn_mask_{}.pt'.format(steps))
+                    torch.save(dqn, MODEL_PATH + 'dqn_test_{}.pt'.format((steps // SAVE_EVERY) % 10))
 
                 if done:
                     break
