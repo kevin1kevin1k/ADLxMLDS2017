@@ -37,7 +37,7 @@ def gen(tags, plot=False, save=False, save_path='', ep=30000, mult=50):
         scipy.misc.imsave(save_path, img)
 
 def gen_5(index, tags, plot=False, save=False, extra=False):
-    for i, ep in enumerate((10000, 12000, 15000, 20000, 30000), start=1):
+    for i, ep in enumerate(range(13000, 25000+1, 3000), start=1):
         if extra:
             save_path_format = './samples/extra_sample_{}_{}.jpg'
         else:
@@ -60,9 +60,6 @@ def main():
             print(tags)
             
             gen_5(index, tags, plot=PLOT, save=True, extra=args.extra)
-#             for m in (1, 5, 10, 50, 100):
-#                 print(m)
-#                 gen(tags, PLOT, save=False, mult=m)
 
 
 # In[ ]:
