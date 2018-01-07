@@ -245,6 +245,8 @@ def train_model(noise_dim=100, dim_factor=64,
 def parse():
     parser = argparse.ArgumentParser(description='train')
     parser.add_argument('--batch_size', default=64, help='batch size')
+    parser.add_argument('--text_path', default='./data/testing_text.txt', help='testing text path')
+    parser.add_argument('--extra', default=False, help='extra track')
     args = parser.parse_args()
     return args
 

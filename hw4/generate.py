@@ -18,12 +18,6 @@ print('plot:', PLOT)
 # In[ ]:
 
 
-TEXT_PATH = './data/testing_text.txt'
-
-
-# In[ ]:
-
-
 def gen(tags, plot=False, save=False, save_path='', ep=30000, mult=50):
     G = torch.load('/mnt/disk0/kevin1kevin1k/models/bs64/gen_net_{}.pt'.format(ep))
     D = torch.load('/mnt/disk0/kevin1kevin1k/models/bs64/disc_net_{}.pt'.format(ep))
@@ -42,9 +36,14 @@ def gen(tags, plot=False, save=False, save_path='', ep=30000, mult=50):
     if save:
         scipy.misc.imsave(save_path, img)
 
-def gen_5(index, tags, plot=False, save=False):
+def gen_5(index, tags, plot=False, save=False, extra=False):
     for i, ep in enumerate((10000, 12000, 15000, 20000, 30000), start=1):
-        save_path = './samples/sample_{}_{}.jpg'.format(index, i) if save else ''
+        if extra:
+            save_path_format = './samples/extra_sample_{}_{}.jpg'
+        else:
+            save_path_format = './samples/sample_{}_{}.jpg'
+
+        save_path = save_path_format.format(index, i) if save else ''
         gen(tags, plot, save, save_path, ep)
 
 
@@ -52,14 +51,15 @@ def gen_5(index, tags, plot=False, save=False):
 
 
 def main():
-    with open(TEXT_PATH) as f:
+    args = parse()
+    with open(args.text_path) as f:
         for line in f:
             index, tags = line.strip().split(',')
             tag_list = tags.split(' ')
             tags = [' '.join(tag_list[i:i+2]) for i in range(0, len(tag_list), 2)]
             print(tags)
             
-            gen_5(index, tags, plot=PLOT, save=True)
+            gen_5(index, tags, plot=PLOT, save=True, extra=args.extra)
 #             for m in (1, 5, 10, 50, 100):
 #                 print(m)
 #                 gen(tags, PLOT, save=False, mult=m)
