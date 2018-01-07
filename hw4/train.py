@@ -36,10 +36,10 @@ N_EPOCHS = 100000
 LEARNING_RATE = 1e-4
 SAVE_IMAGE_EVERY = 100
 SAVE_MODEL_EVERY = 100
-IMAGE_PATH = '/mnt/disk0/kevin1kevin1k/images/'
-MODEL_PATH = '/mnt/disk0/kevin1kevin1k/models/'
+IMAGE_DIR = '/mnt/disk0/kevin1kevin1k/images/'
+MODEL_DIR = '/mnt/disk0/kevin1kevin1k/models/'
 TAGS_PATH = './data/tags_clean.csv'
-FACES_PATH = './data/faces/'
+FACES_DIR = './data/faces/'
 
 
 # In[ ]:
@@ -66,7 +66,6 @@ is_eyes = lambda tag: tag.endswith(' eyes') and tag not in EYES_REMOVE
 with open(TAGS_PATH) as f:
     for line in f:
         index, tags = line.strip().split(',')
-        index = index
         tag_list = tags.split('\t')
         tags = []
         for t in tag_list:
@@ -122,7 +121,7 @@ def fill_X_and_tag_matrix():
 
     for i, face_index in enumerate(index2tags):
         # (96, 96, 3)
-        image = skimage.io.imread(os.path.join(FACES_PATH, face_index + '.jpg'))
+        image = skimage.io.imread(os.path.join(FACES_DIR, face_index + '.jpg'))
 
         # (64, 64, 3)
         image_resized = skimage.transform.resize(image, (IMAGE_SIZE, IMAGE_SIZE), mode='constant')
@@ -227,12 +226,12 @@ def train_model(noise_dim=100, dim_factor=64,
         if (ep + 1) % SAVE_IMAGE_EVERY == 0:
             gen_data = gen_net(fixed_noise_var, fixed_tags_var)
             img = gen_data.data.cpu().numpy().transpose(0, 2, 3, 1)[0]
-            image_path = os.path.join(IMAGE_PATH, 'bs{}'.format(batch_size), 'test{}.jpg'.format(ep + 1))
+            image_path = os.path.join(IMAGE_DIR, 'bs{}'.format(batch_size), 'test{}.jpg'.format(ep + 1))
             scipy.misc.imsave(image_path, img)
 
         if (ep + 1) % SAVE_MODEL_EVERY == 0:
-            gen_path = os.path.join(MODEL_PATH, 'bs{}'.format(batch_size), 'gen_net_{}.pt'.format(ep + 1))
-            disc_path = os.path.join(MODEL_PATH, 'bs{}'.format(batch_size), 'disc_net_{}.pt'.format(ep + 1))
+            gen_path = os.path.join(MODEL_DIR, 'bs{}'.format(batch_size), 'gen_net_{}.pt'.format(ep + 1))
+            disc_path = os.path.join(MODEL_DIR, 'bs{}'.format(batch_size), 'disc_net_{}.pt'.format(ep + 1))
             torch.save(gen_net, gen_path)
             torch.save(disc_net, disc_path)
 
