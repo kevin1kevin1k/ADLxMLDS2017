@@ -19,7 +19,7 @@ from time import time
 
 
 TOTAL_STEPS = 10**7
-MEMORY_SIZE = 10000
+MEMORY_SIZE = 100
 TARGET_UPDATE_FREQ = 1000
 EVAL_UPDATE_FREQ = 4
 BATCH_SIZE = 32
@@ -142,9 +142,11 @@ class DQN(object):
         b_r  = Variable(torch.cat(batch.r))
 
         q_eval = self.eval_net(b_s).gather(1, b_a)
+        a_next = Variable(torch.zeros(BATCH_SIZE).type(LongTensor))
         q_next = Variable(torch.zeros(BATCH_SIZE).type(FloatTensor))
         non_final_mask = ByteTensor(tuple(map(lambda s: s is not None, batch.s_)))
-        q_next[non_final_mask] = self.target_net(b_s_).max(1)[0]
+        a_next[non_final_mask] = self.target_net(b_s_).max(1)[1]
+        a_next[non_final_mask] = self.target_net(b_s_).max(1)[1]
         q_next.volatile = False
         q_target = b_r + GAMMA * q_next
         loss = self.loss(q_eval, q_target)

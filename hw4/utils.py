@@ -15,6 +15,8 @@ from torch.autograd import Variable, grad
 
 
 # https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/03-advanced/deep_convolutional_gan/model.py`
+# https://github.com/aelnouby/Text-to-Image-Synthesis/blob/master/models/wgan_cls.py
+# https://github.com/aelnouby/Text-to-Image-Synthesis/blob/master/utils.py
 
 def deconv(c_in, c_out, k_size, stride=2, pad=1, bn=True):
     """Custom deconvolutional layer for simplicity."""
@@ -36,7 +38,8 @@ class Generator(nn.Module):
         self.deconv4 = deconv(conv_dim, 3, 4, bn=False)
         self.verbose = verbose
 
-    def forward(self, z):
+    def forward(self, z, tags=None):
+        z = torch.cat((z, tags), dim=1)
         if self.verbose: print(z.size())
         z = z.view(z.size(0), z.size(1), 1, 1)      # If image_size is 64, output shape is as below.
         if self.verbose: print(z.size())
@@ -64,16 +67,16 @@ def conv(c_in, c_out, k_size, stride=2, pad=1, bn=False):
 
 class Discriminator(nn.Module):
     """Discriminator containing 4 convolutional layers."""
-    def __init__(self, image_size=64, conv_dim=64, verbose=False):
+    def __init__(self, image_size=64, conv_dim=64, num_tags=23, verbose=False):
         super(Discriminator, self).__init__()
         self.conv1 = conv(3, conv_dim, 4, bn=False)
         self.conv2 = conv(conv_dim, conv_dim*2, 4)
         self.conv3 = conv(conv_dim*2, conv_dim*4, 4)
         self.conv4 = conv(conv_dim*4, conv_dim*8, 4)
-        self.fc = conv(conv_dim*8, 1, int(image_size/16), 1, 0, False)
+        self.fc = conv(conv_dim*8 + num_tags, 1, int(image_size/16), 1, 0, False)
         self.verbose = verbose
 
-    def forward(self, x):                         # If image_size is 64, output shape is as below.
+    def forward(self, x, tags):                         # If image_size is 64, output shape is as below.
         if self.verbose: print(x.size())
         out = F.leaky_relu(self.conv1(x), 0.05)    # (?, 64, 32, 32)
         if self.verbose: print(out.size())
@@ -82,6 +85,12 @@ class Discriminator(nn.Module):
         out = F.leaky_relu(self.conv3(out), 0.05)  # (?, 256, 8, 8)
         if self.verbose: print(out.size())
         out = F.leaky_relu(self.conv4(out), 0.05)  # (?, 512, 4, 4)
+        if self.verbose: print(out.size())
+        replicated_tags = tags.repeat(4, 4, 1, 1)
+        if self.verbose: print(replicated_tags.size())
+        replicated_tags = replicated_tags.permute(2, 3, 0, 1)
+        if self.verbose: print(replicated_tags.size())
+        out = torch.cat([out, replicated_tags], 1)
         if self.verbose: print(out.size())
         out = self.fc(out).squeeze()
         if self.verbose: print(out.size())
@@ -93,7 +102,7 @@ class Discriminator(nn.Module):
 
 # https://github.com/shariqiqbal2810/WGAN-GP-PyTorch/blob/master/code/utils.py
 
-def wgan_generator_loss(gen_noise, gen_net, disc_net):
+def wgan_generator_loss(gen_noise, gen_tags, gen_net, disc_net):
     """
     Generator loss for Wasserstein GAN (same for WGAN-GP)
     Inputs:
@@ -107,15 +116,15 @@ def wgan_generator_loss(gen_noise, gen_net, disc_net):
     # draw noise
     gen_noise.data.normal_()
     # get generated data
-    gen_data = gen_net(gen_noise)
+    gen_data = gen_net(gen_noise, gen_tags)
     # feed data through discriminator
-    disc_out = disc_net(gen_data)
+    disc_out = disc_net(gen_data, gen_tags)
     # get loss
     loss = -disc_out.mean()
-    return loss, gen_data
+    return loss
 
 
-def wgan_gp_discriminator_loss(gen_noise, real_data, gen_net, disc_net, lmbda,
+def wgan_gp_discriminator_loss(gen_noise, real_tags, wrong_tags, real_data, gen_net, disc_net, lmbda,
                                gp_alpha):
     """
     Discriminator loss with gradient penalty for Wasserstein GAN (WGAN-GP)
@@ -134,19 +143,20 @@ def wgan_gp_discriminator_loss(gen_noise, real_data, gen_net, disc_net, lmbda,
     # draw noise
     gen_noise.data.normal_()
     # get generated data
-    gen_data = gen_net(gen_noise)
+    gen_data = gen_net(gen_noise, real_tags)
     # feed data through discriminator
-    disc_out_gen = disc_net(gen_data)
-    disc_out_real = disc_net(real_data)
+    disc_out_gen = disc_net(gen_data, real_tags)
+    disc_out_wrong = disc_net(real_data, wrong_tags)
+    disc_out_real = disc_net(real_data, real_tags)
     # get loss (w/o GP)
-    loss = disc_out_gen.mean() - disc_out_real.mean()
+    loss = (disc_out_gen.mean() + disc_out_wrong.mean()) * 0.5 - disc_out_real.mean()
     # draw interpolation values
     gp_alpha.uniform_()
     # interpolate between real and generated data
     interpolates = gp_alpha * real_data.data + (1 - gp_alpha) * gen_data.data
     interpolates = Variable(interpolates, requires_grad=True)
     # feed interpolates through discriminator
-    disc_out_interp = disc_net(interpolates)
+    disc_out_interp = disc_net(interpolates, real_tags)
     # get gradients of discriminator output with respect to input
     gradients = grad(outputs=disc_out_interp.sum(), inputs=interpolates,
                      create_graph=True)[0]
@@ -173,14 +183,21 @@ def disable_gradients(net):
 if __name__ == '__main__':
     # testing
 
-    z_dim = 100
+    batch_size = 10
+    noise_dim = 100
+    num_tags = 23
+    z_dim = noise_dim + num_tags
     G = Generator(z_dim=z_dim, image_size=64, verbose=True)
     D = Discriminator(image_size=64, verbose=True)
-    z = Variable(torch.FloatTensor(10, z_dim))
-    x = G(z)
-    y = D(x)
+    z = Variable(torch.FloatTensor(batch_size, noise_dim))
+    t = Variable(torch.FloatTensor(batch_size, num_tags))
+    x = G(z, t)
+    print()
+    y = D(x, t)
 
-    wgan_generator_loss(z, G, D)
-    alpha = torch.FloatTensor(10, 1, 1, 1)
-    wgan_gp_discriminator_loss(z, G(z), G, D, 0.5, alpha)
+    wgan_generator_loss(z, t, G, D)
+
+    alpha = torch.FloatTensor(batch_size, 1, 1, 1)
+    lmbda = 0.5
+    wgan_gp_discriminator_loss(z, t, x, G, D, lmbda, alpha)
 
