@@ -19,8 +19,9 @@ print('plot:', PLOT)
 
 
 def gen(tags, plot=False, save=False, save_path='', ep=30000, mult=50):
-    G = torch.load('/mnt/disk0/kevin1kevin1k/models/bs64/gen_net_{}.pt'.format(ep))
-    D = torch.load('/mnt/disk0/kevin1kevin1k/models/bs64/disc_net_{}.pt'.format(ep))
+    model_dir = './models/'
+    G = torch.load(os.path.join(model_dir, 'gen_net_{}.pt'.format(ep)))
+    D = torch.load(os.path.join(model_dir, 'disc_net_{}.pt'.format(ep)))
     G.cpu()
     D.cpu()
     z = Variable(torch.FloatTensor(1, NOISE_DIM), requires_grad=False)
